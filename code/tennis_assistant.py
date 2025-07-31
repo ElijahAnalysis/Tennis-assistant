@@ -121,28 +121,28 @@ class BallDetector:
 class CourtLineDetector:
     def __init__(self, model_path):
         self.model = torchvision.models.efficientnet_b4(pretrained=True)
-        self.model.classifier[1] = torch.nn.Linear(self.model.classifier[1].in_features, 14*2) 
+        self.model.classifier[1] = torch.nn.Linear(self.model.classifier[1].in_features, 14*2)
         self.model.load_state_dict(torch.load(model_path, map_location='cpu'))
+        self.model.eval()
+
         self.transform = torchvision.transforms.Compose([
             torchvision.transforms.ToPILImage(),
             torchvision.transforms.Resize((224, 224)),
             torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                             std=[0.229, 0.224, 0.225])
         ])
 
     def predict(self, image):
 
-    
-        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        image_tensor = self.transform(image_rgb).unsqueeze(0)
+        h, w = image.shape[:2]
+        image_tensor = self.transform(image).unsqueeze(0)  # Keep BGR image here
         with torch.no_grad():
-            outputs = self.model(image_tensor)
-        keypoints = outputs.squeeze().cpu().numpy()
-        original_h, original_w = image.shape[:2]
-        keypoints[::2] *= original_w / 224.0 
-        keypoints[1::2] *= original_h / 224.0 
-
-        return keypoints 
+            outputs = self.model(image_tensor).cpu().numpy().reshape(-1, 2)
+        outputs[:, 0] *= w / 224.0
+        outputs[:, 1] *= h / 224.0
+        
+        return outputs.flatten()
 
 
 
@@ -312,7 +312,7 @@ def save_video(output_path, frames, player_detections, ball_detections, visualiz
 
 
 video_path = r"C:\Users\User\Desktop\tennis assistant\data\tennis_game_sample2.mp4"
-output_path = r"C:\Users\User\Downloads\annotated_output.mp4"
+output_path = r"C:\Users\User\Downloads\annotated_output_with_courtline.mp4"
 
 
 player_detector = PlayerDetector(r"C:\Users\User\Desktop\tennis assistant\models\yolo11s_tennisv2.pt")
@@ -334,8 +334,6 @@ court_points = court_keypoints.reshape(-1, 2).astype(int)
 # Save annotated video
 visualizer = Visualizer()
 save_video(output_path, frames, player_detections, ball_detections, visualizer, court_points=court_points)
-
-
 
 
 
