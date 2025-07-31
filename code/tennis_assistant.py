@@ -120,7 +120,7 @@ class BallDetector:
 
 class CourtLineDetector:
     def __init__(self, model_path):
-        self.model = torchvision.models.efficientnet_b0(pretrained=True)
+        self.model = torchvision.models.efficientnet_b4(pretrained=True)
         self.model.classifier[1] = torch.nn.Linear(self.model.classifier[1].in_features, 14*2) 
         self.model.load_state_dict(torch.load(model_path, map_location='cpu'))
         self.transform = torchvision.transforms.Compose([
@@ -318,7 +318,7 @@ output_path = r"C:\Users\User\Downloads\annotated_output.mp4"
 player_detector = PlayerDetector(r"C:\Users\User\Desktop\tennis assistant\models\yolo11s_tennisv2.pt")
 ball_detector = BallDetector(r"C:\Users\User\Desktop\tennis assistant\models\yolo11s_tennisv2.pt")
 
-court_model_path = r"C:\Users\User\Desktop\tennis assistant\models\efficientnetb0_tennis_court_keypoints.pt"
+court_model_path = r"C:\Users\User\Desktop\tennis assistant\models\efficientnetb4_tennis_court_keypoints.pt"
 court_line_detector = CourtLineDetector(court_model_path)
 
 frames = VideoReader.read_video(video_path)
