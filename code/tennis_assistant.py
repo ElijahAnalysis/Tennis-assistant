@@ -147,20 +147,19 @@ class CourtLineDetector:
 
 
 class MiniCourt:
-    def __init__(self,frame):
+    def __init__(self, frame):
         self.drawing_rectangle_width = 250
         self.drawing_rectangle_height = 500
         self.buffer = 50
-        self.padding_court=20
+        self.padding_court = 20
 
         self.set_canvas_background_box_position(frame)
         self.set_mini_court_position()
         self.set_court_lines()
         self.drawing_key_points = self.generate_scaled_keypoints()
 
-
-    def set_canvas_background_box_position(self,frame):
-        frame= frame.copy() # not overriding the original frame
+    def set_canvas_background_box_position(self, frame):
+        frame = frame.copy()  # not overriding the original frame
 
         self.end_x = frame.shape[1] - self.buffer 
         self.end_y = self.buffer + self.drawing_rectangle_height
@@ -169,7 +168,6 @@ class MiniCourt:
 
     def set_mini_court_position(self):
         # Adding the padding to place the court corner points
-  
         self.court_start_x = self.start_x + self.padding_court
         self.court_start_y = self.start_y + self.padding_court
         self.court_end_x = self.end_x - self.padding_court
@@ -181,18 +179,17 @@ class MiniCourt:
     
     def set_court_lines(self):
         self.lines = [
-            (0, 2),
-            (4, 5),
-            (6,7),
-            (1,3),
-            
-            (0,1),
-            (8,9),
-            (10,11),
-            (10,11),
-            (2,3)]
+            (0, 2),   # top baseline
+            (4, 5),   # service lines
+            (6, 7),   # other service lines
+            (1, 3),   # bottom baseline
+            (0, 1),   # left sideline
+            (8, 9),   # left service box
+            (10, 11), # right service box
+            (2, 3)    # right sideline
+        ]
         
-    def draw_mini_court(self,frames):
+    def draw_mini_court(self, frames):
         output_frames = []
         for frame in frames:
             frame = self.draw_background_rectangle(frame)
@@ -200,35 +197,41 @@ class MiniCourt:
             output_frames.append(frame)
         return output_frames
     
-    def draw_background_rectangle(self,frame):
-        shapes = np.zeros_like(frame,np.uint8)
+    def draw_background_rectangle(self, frame):
+        shapes = np.zeros_like(frame, np.uint8)
         # Draw the rectangle with the given coordinates
         cv2.rectangle(shapes, (self.start_x, self.start_y), (self.end_x, self.end_y), (255, 255, 255), cv2.FILLED)
         out = frame.copy()
-        alpha=0.5 #transparency level
-        mask = shapes.astype(bool) # creates a boolean mask where the white rectangle is True and everything else is False.
+        alpha = 0.5  # transparency level
+        mask = shapes.astype(bool)  # creates a boolean mask where the white rectangle is True and everything else is False.
         out[mask] = cv2.addWeighted(frame, alpha, shapes, 1 - alpha, 0)[mask]
 
         return out
 
-    def draw_court(self,frame):
-            for i in range(0, len(self.drawing_key_points),2):
-                x = int(self.drawing_key_points[i])
-                y = int(self.drawing_key_points[i+1])
-                cv2.circle(frame, (x,y),5, (0,0,255),-1) # draws point at respective position
+    def draw_court(self, frame):
+        # Draw keypoints
+        for i in range(0, len(self.drawing_key_points), 2):
+            x = int(self.drawing_key_points[i])
+            y = int(self.drawing_key_points[i+1])
+            cv2.circle(frame, (x, y), 5, (0, 0, 255), -1)  # draws point at respective position
 
-            # draw Lines
-            for line in self.lines:
-                start_point = (int(self.drawing_key_points[line[0]*2]), int(self.drawing_key_points[line[0]*2+1]))
-                end_point = (int(self.drawing_key_points[line[1]*2]), int(self.drawing_key_points[line[1]*2+1]))
-                cv2.line(frame, start_point, end_point, (0, 0, 0), 2)
+        # Draw Lines
+        for line in self.lines:
+            start_point = (int(self.drawing_key_points[line[0]*2]), int(self.drawing_key_points[line[0]*2+1]))
+            end_point = (int(self.drawing_key_points[line[1]*2]), int(self.drawing_key_points[line[1]*2+1]))
+            cv2.line(frame, start_point, end_point, (0, 0, 0), 2)
 
-            # Draw net
-            net_start_point = (self.drawing_key_points[0], int((self.drawing_key_points[1] + self.drawing_key_points[5])/2))
-            net_end_point = (self.drawing_key_points[2], int((self.drawing_key_points[1] + self.drawing_key_points[5])/2))
-            cv2.line(frame, net_start_point, net_end_point, (255, 0, 0), 2)
+        # Draw net - Fixed to be at the actual center of the court
+        # Calculate the center Y position based on the court boundaries
+        net_y = int(self.court_start_y + (self.court_end_y - self.court_start_y) / 2)
+        
+        # Net spans the full width of the court
+        net_start_point = (self.court_start_x, net_y)
+        net_end_point = (self.court_end_x, net_y)
+        
+        cv2.line(frame, net_start_point, net_end_point, (255, 0, 0), 2)
 
-            return frame
+        return frame
 
     def generate_scaled_keypoints(self):
         """
@@ -251,7 +254,7 @@ class MiniCourt:
             py = int(self.court_start_y + y * (self.court_end_y - self.court_start_y))
             scaled.extend([px, py])
         return scaled
-
+    
 
 
 class Visualizer:
@@ -291,6 +294,7 @@ class Visualizer:
     
 
 
+
 def save_video(output_path, frames, player_detections, ball_detections, visualizer, fps=30, court_points=None):
     height, width, _ = frames[0].shape
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # or use 'XVID' for .avi files
@@ -312,7 +316,7 @@ def save_video(output_path, frames, player_detections, ball_detections, visualiz
 
 
 video_path = r"C:\Users\User\Desktop\tennis assistant\data\tennis_game_sample2.mp4"
-output_path = r"C:\Users\User\Downloads\annotated_output_with_courtline.mp4"
+output_path = r"C:\Users\User\Downloads\annotated_output_with_courtlinev2.mp4"
 
 
 player_detector = PlayerDetector(r"C:\Users\User\Desktop\tennis assistant\models\yolo11s_tennisv2.pt")
@@ -334,10 +338,6 @@ court_points = court_keypoints.reshape(-1, 2).astype(int)
 # Save annotated video
 visualizer = Visualizer()
 save_video(output_path, frames, player_detections, ball_detections, visualizer, court_points=court_points)
-
-
-
-
 
 
 
