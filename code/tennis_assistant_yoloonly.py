@@ -121,8 +121,6 @@ class BallDetector:
         return ball_positions
 
 
-
-
 class NetDetector:
     def __init__(self, yolo_model_path):
         self.model = YOLO(yolo_model_path)
@@ -201,19 +199,33 @@ class CourtLineDetector:
         id_name_dict = results.names
         point_dict = {}
 
-        # Keypoint labels are integers from 1 to 14 as strings
-        keypoint_labels = [str(i) for i in range(1, 15)]  # ["1", "2", "3", ..., "14"]
+        # Get all available classes for debugging
+        available_classes = set(id_name_dict.values())
+        print(f"Available classes in model: {available_classes}")
+        
+        # Exclude known non-keypoint classes
+        non_keypoint_classes = {'player', 'ball'}
+        
+        # Simple counter for unique keypoint IDs
+        keypoint_counter = 0
         
         for box in results.boxes:
-            class_id = box.cls.tolist()[0]
+            class_id = int(box.cls.tolist()[0])
             class_name = id_name_dict[class_id]
 
-            # Only process if it's a keypoint (class names "1" to "14"), not ball or player
-            if class_name in keypoint_labels:
+            # Include ALL detections that are NOT player, ball
+            if class_name not in non_keypoint_classes:
                 x1, y1, x2, y2 = box.xyxy.tolist()[0]
                 cx = (x1 + x2) / 2
                 cy = (y1 + y2) / 2
-                point_dict[class_id] = [cx, cy]
+                
+                # Just assign sequential IDs to all keypoints regardless of their class
+                point_dict[keypoint_counter] = [cx, cy]
+                
+                confidence = box.conf.tolist()[0] if box.conf is not None else 0.0
+                print(f"Keypoint {keypoint_counter}: original_class={class_name}, center=({cx:.1f}, {cy:.1f}), conf={confidence:.3f}")
+                
+                keypoint_counter += 1
             
         return point_dict
 
@@ -243,6 +255,7 @@ class SpeedEstimator:
         """
         Calculate the pixel length of the court using detected points
         Uses the maximum distance between any two points as approximation
+        Now handles multiple detections per class
         """
         if not court_points:
             return 500  # Default fallback value
@@ -413,10 +426,11 @@ class Visualizer:
         return frame
     
     def draw_court_points(self, frame, court_points):
-        """Draw detected court line points"""
-        for point_id, (x, y) in court_points.items():
+        """Draw detected court line points - handles multiple detections per class"""
+        for point_key, (x, y) in court_points.items():
             cv2.circle(frame, (int(x), int(y)), 8, (0, 140, 255), -1)
-            cv2.putText(frame, str(point_id), (int(x) + 10, int(y) - 10), 
+            # Display the point key (could be class_id or class_id_N for multiple detections)
+            cv2.putText(frame, str(point_key), (int(x) + 10, int(y) - 10), 
                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 140, 255), 2)
         return frame
 
@@ -478,11 +492,11 @@ def save_video(output_path, frames, player_detections, ball_detections, visualiz
 
 # Main execution
 if __name__ == "__main__":
-    video_path = r"C:\Users\User\Desktop\tennis assistant\data\tennis_game_sample2.mp4"
-    output_path = r"C:\Users\User\Downloads\annotated_output_with_speed_bpk.mp4"
+    video_path = r"C:\Users\User\Desktop\Github\Tennis-assistant\data\tennis_game_sample2.mp4"
+    output_path = r"C:\Users\User\Downloads\annotated_output_with_speed_bpk2.mp4"
 
-    yolo11n_bpk_path = r"C:\Users\User\Desktop\tennis assistant\models\yolo11n_bpk.pt"
-    yolo11n_net_path = r"C:\Users\User\Desktop\tennis assistant\models\yolo11n_net_detector\weights\best.pt" 
+    yolo11n_bpk_path = r"C:\Users\User\Desktop\Github\Tennis-assistant\models\yolo11n_bpk.pt"
+    yolo11n_net_path = r"C:\Users\User\Desktop\Github\Tennis-assistant\models\yolo11n_net_detector\weights\best.pt"
 
     # Initialize detectors with YOLO model
     player_detector = PlayerDetector(yolo11n_bpk_path)
@@ -550,8 +564,6 @@ if __name__ == "__main__":
         player_speeds=player_speeds,
         ball_speeds=ball_speeds
     )
-        
-
 
 
 
