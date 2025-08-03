@@ -1,1 +1,1 @@
-![Demo](models_performance/sample.gif)
+![Demo](models_performance/sample_gif.gif)
